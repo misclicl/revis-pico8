@@ -121,14 +121,19 @@ end
 -->8
 -- player --
 local frames_since_jump = 0
-local IDLE = 0
-local RUN = 1
-local FALL = 2
+local player_x_velocity = 1.4
+local state = { -- state enum
+    IDLE = 0,
+    RUN = 1,
+    JUMP = 2,
+    FALL = 3,
+}
 
 local animations = {
-    [IDLE] = {48, 2, 2},
-    [RUN] = {53, 4, 5},
-    [FALL] = {50, 2, 4}
+    [state.IDLE] = {48, 2, 2},
+    [state.RUN] = {53, 4, 6},
+    [state.FALL] = {50, 2, 4},
+    [state.JUMP] = {50, 1, 1}
 }
 
 function i_plr()
@@ -141,12 +146,14 @@ function i_plr()
 end
 
 function get_plr_state()
-    if not plr.on_ground then
-        return FALL
+    if not plr.on_ground and plr.vel_y < 0 then
+        return state.JUMP
+    elseif not plr.on_ground then
+        return state.FALL
     elseif plr.vel_x ~= 0 then
-        return RUN
+        return state.RUN
     else
-        return IDLE
+        return state.IDLE
     end
 end
 
@@ -162,10 +169,10 @@ function u_plr()
 
     -- controls --
     if btn(➡️) then
-        plr.proto.vel_x = 1
+        plr.proto.vel_x = player_x_velocity
         plr.proto.f_y = false
     elseif btn(⬅️) then
-        plr.proto.vel_x = -1
+        plr.proto.vel_x = -player_x_velocity
         plr.proto.f_y = true
     else
         plr.proto.vel_x=0
@@ -199,6 +206,8 @@ function u_plr()
 
     -- reset position
     if plr.y > 200 then plr.y = 0 end
+    if plr.x >= 127 then plr.x = -7 end
+    if plr.x < -7 then plr.x = 127 end
 
     plr.state = get_plr_state()
 
@@ -282,12 +291,6 @@ layers = 8
 lr_w = 16
 lr_h = 8
 
-
-lvl={
-    layers = {}
-}
-
-
 function create_layer()
     local layer = {}
 
@@ -346,8 +349,6 @@ function prc_layer(li)
             end
         end
     end
-
-    lvl.layers[li+1] = layer
 end
 
 function i_lvl()
@@ -378,41 +379,6 @@ function d_lvl(cmr_x, cmr_y)
         elseif(entry.z < plr.z) then
             spr(20, pos_x, pos_y)
         end
-    end
-end
-
--- TODO: handle front/back tiles at the wrapping "seam"
-function d_layer(layer_idx)
-    local layer = lvl.layers[layer_idx]
-    local slice_idx = plr.z + 1
-
-    for col_i = 1,lr_w do
-        local col = layer[col_i]
-
-
-        local sprite_back =
-            col[(slice_idx - 1) % lr_h] ~= 0 and
-            col[(slice_idx - 1) % lr_h] ~= nil
-        local sprite_curr = col[slice_idx] ~= 0
-        local sprite_front = col[(slice_idx + 1) % lr_h] ~= 0
-
-        local sprite = 0
-
-        if sprite_back then
-            sprite = front_far
-        end
-
-        if sprite_curr then
-            if (not sprite_back and not sprite_front) then sprite = single
-            elseif sprite_back and sprite_front then sprite = inside
-            elseif not sprite_back then sprite = backface
-            else sprite = front end
-        end
-
-        local screen_x = (col_i - 1) * block_width
-        local screen_y = scr_btm - layer_idx * 8
-
-        spr(sprite, screen_x, screen_y)
     end
 end
 
