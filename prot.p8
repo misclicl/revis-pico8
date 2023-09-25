@@ -19,8 +19,40 @@ front_far = 4
 single = 14
 
 -- game state --
+--[[
+    let's think about the map. it must be easily iterable and I should be
+    able to access block's neighbors quickly (given the same x and y coords)
+
+    solution #1 - two tables:
+
+    - flat list of object's meta data, e.g. position, sprite, etc
+    - lookup table <uniqid>: 1st list index
+
+    pros:
+    - easy to build, reason about. especially if unique id works out
+    cons:
+    - two structures
+
+    solutions #2 - one table:
+
+    { [z]:[y]:[y]:object }
+
+    this sucks - too complicated
+
+    solution #3 - two tables
+
+    - flat list, see #1
+    - 3-dimensional array with indices, refs to the fist list
+
+    pros:
+    - simplicity
+    - can quickly find neigbors
+    - can quickly find object at specific world position
+
+    this one seems the best for now
+]]
+
 collision_map = {}
--- slice = 0
 objects = {}
 lookup = {}
 prev_x_button_state = false
@@ -309,7 +341,6 @@ function prc_layer(li)
             -- printh(obj_key)
 
             if pixel_data ~= 0 then
-                -- collision_map[obj_key] = pixel_data
                 -- todo: proper spirte ?? sprite optional
                 add(collision_map, create_obj(1, x, y, z))
             end
@@ -437,11 +468,12 @@ function move_obj_x(o, x, collide_cb)
     local int_mv_delta = flr(o.remainder_x + .5) -- mx == floor(1.9)
     o.remainder_x -= int_mv_delta -- remainder becomes .9
 
-    local total = int_mv_delta -- totat distance to travel 1
+    local total = int_mv_delta -- total distance to travel 1
     local mxs = sgn(int_mv_delta) -- movement direction
     while int_mv_delta != 0
     do
         if collides(o, mxs, 0) then
+            if collide_cb ~= nil then collide_cb() end
             return true
         else
             o.x += mxs -- move by 1 pixel
